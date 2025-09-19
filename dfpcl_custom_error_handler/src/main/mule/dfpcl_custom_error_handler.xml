@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="c59388e0-88b9-413e-9ce7-5d2e3fa48c8d" >
+		<salesforce:basic-connection username="vivek.supane@deepakfertilizer.com" password="Digi2019#" securityToken="j1EtWrDFOt8Zx5BeSIOuC10n" url="https://test.salesforce.com/services/Soap/u/58.0"/>
+	</salesforce:sfdc-config>
+	<file:config name="File_Config" doc:name="File Config" doc:id="d0d8644f-047c-44dc-931a-5a941de28881" />
+	<flow name="dfpcl.custom.error.handlerFlow" doc:id="a2ac2a8c-d6a8-47dc-81eb-b9a5ad7fbe7c" >
+		<scheduler doc:name="Scheduler" doc:id="455497ab-ca37-4d86-bcb6-75c4a757862f" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" timeUnit="MINUTES" />
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="Logger" doc:id="df2e5451-b255-4dc3-a151-a53426014d05" message="starting of the flow" />
+		<salesforce:query doc:id="00f1a25e-a8e0-4ec3-99e7-c77d8c27528d" config-ref="Salesforce_Config" doc:name="Query" >
+			<salesforce:salesforce-query ><![CDATA[SELECT Id, inov8__Error_Message__c, SAP_Error_log_Inventory__c, SAP_Payload__c,
+       SAP_Error_log_Invoice__c, SAP_Error_log_Ledger__c, SAP_Error_log_Order__c
+FROM inov8__PMT_Error_Log__c]]></salesforce:salesforce-query>
+		</salesforce:query>
+		<ee:transform doc:name="Transform Message" doc:id="eacadcd0-393c-4977-8149-8440c93052ef" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload filter($.inov8__Error_Message__c != null) map(item,index)->item.SAP_Payload__c]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="51951209-7379-483f-93f3-ebf0946d14d4" message="#[payload]" />
+		<ee:transform doc:name="Transform Message1" doc:id="0a8f8980-137b-4f3e-a062-c82224cd5515" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="a68191ff-f84f-4e0b-bd56-20ba26c6a3e7" >
+			<set-variable value='#[if(payload contains "Customer__c") "Customer Ledger" else if(payload contains "Invoice_No__c") "Sales Invoice" else "Not valid"]' doc:name="endPointNameVar" doc:id="7bc17242-28fc-44ef-87f0-c6150edfedd3" variableName="endPointNameVar" />
+			<choice doc:name="Choice" doc:id="6950432e-6d9d-4456-a7e9-d1ba05b757ff" >
+				<when expression='#[(payload contains "Customer__c")]' >
+					<logger level="INFO" doc:name="Logger" doc:id="651c05a2-1091-4d33-80ad-31d90c82d492" message='#[if(vars.endPointNameVar == "CustomerLedger") "The payload is of CustomerLedger" else "Not valid"]' />
+					<ee:transform doc:name="Transform Message" doc:id="61e7a469-2c97-47cd-b975-5f3661cf7d88" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</when>
+				<when expression='#[(payload contains "Invoice_No__c")]' >
+					<logger level="INFO" doc:name="Logger" doc:id="7927b77f-accb-4be2-877a-0ee845d84697" message='#[if(vars.endPointNameVar == "SalesInvoices") "The payload is of SalesInvoices" else "Not valid"]' />
+					<ee:transform doc:name="Transform Message" doc:id="46d9235b-58fb-449e-8e66-c59864d80914" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</when>
+				<otherwise >
+					<ee:transform doc:name="Transform Message" doc:id="0da18e41-7912-47c7-9984-07957cf4f8fe" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"Not a valid payload"]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</otherwise>
+			</choice>
+			<set-variable value="#[payload]" doc:name="forFinalPayloadVar" doc:id="c9727a8b-9654-4332-a81d-6e9bf8d2f17b" variableName="forFinalPayloadVar" />
+			<file:write doc:id="94958b97-0b2e-4df1-a30c-69dd6e1f5c94" config-ref="File_Config" path="D:\Projects\DEEPAK_FERTILIZERS(DFPCL)\Error_Log.txt" mode="APPEND" doc:name="Write" >
+				<file:content ><![CDATA[#[%dw 2.0
+output text/plain
+---
+write(
+  {
+    endpointName: payload,
+    payload: vars.forFinalPayloadVar
+  },
+  "application/json"
+)]]]></file:content>
+			</file:write>
+		</foreach>
+		<logger level="INFO" doc:name="Logger2" doc:id="4af682b9-d30b-48e1-b25a-9c8680f1ff89" message='#["Flow Successfully Processed"]' />
+	</flow>
+</mule>
