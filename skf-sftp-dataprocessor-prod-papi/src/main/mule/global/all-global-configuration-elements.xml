@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp"
+	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation=" http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+	<http:listener-config
+		name="skf-sftp-dataprocessor-papi-httpListener">
+		<http:listener-connection host="0.0.0.0"
+			port="${http.port}" />
+	</http:listener-config>
+	<sftp:config name="SFTP_Config_UAT" doc:name="SFTP Config" doc:id="ceeb233e-3114-423a-94cd-d532d530d86b" >
+		<sftp:connection workingDir="/" host="${SFTPNAM.Host}" username="${SFTPNAM.Username}" password="${SFTPNAM.Password}" connectionTimeout="10000" responseTimeout="100000" port="${SFTPNAM.Port}">
+			<reconnection />
+		</sftp:connection>
+	</sftp:config>
+	<sftp:config name="LUBSAP_SFTP_Config" doc:name="SFTP Config" doc:id="a04d6ee5-26e1-487a-8cd1-228f7b171741" >
+		<sftp:connection host="${SFTP.Host}" username="${SFTP.Username}" password="${SFTP.Password}" connectionTimeout="60" responseTimeout="60" workingDir="${SFTP.path}" port="${SFTP.Port}">
+			<reconnection >
+				<reconnect />
+			</reconnection>
+		</sftp:connection>
+	</sftp:config>
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="b21a85ca-fbe2-44f1-a9af-0feed00556d5"
+		file="properties\config-properties-${env}.yaml" />
+	<configuration doc:name="Configuration"
+		doc:id="797a31f6-ee52-42d6-bfd0-0d53182ebc3b"
+		defaultErrorHandler-ref="global-error-handler" />
+	<salesforce:sfdc-config name="Salesforce_Prod-Config" doc:name="Salesforce Config" doc:id="88cf7945-6242-41ff-876d-75722e8c43a8" >
+		<salesforce:basic-connection username="${Salesforce.Username}" password="${Salesforce.Password}" securityToken="${Salesforce.SecurityToken}" url="${Salesforce.AuthURL}"/>
+	</salesforce:sfdc-config>
+	<global-property doc:name="Global Property"
+		doc:id="56f96b6c-180c-404c-923a-10b8d599b95e" name="env" value="prod" />
+	<http:request-config name="HTTP_Request_config_local_resources" doc:name="HTTP Request configuration" doc:id="914ee292-84fd-4e80-9628-d4620d84dbc2" basePath="/api" responseTimeout="3000000">
+		<http:request-connection host="${httprequestlocal.host}" port="${httprequestlocal.port}" connectionIdleTimeout="3000000">
+			<reconnection >
+				<reconnect />
+			</reconnection>
+		</http:request-connection>
+	</http:request-config>
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="ce6fb6e1-efe3-4850-b5ae-d58aaf7be0d5" >
+		<email:smtp-connection host="${SMTP.host}" user="${SMTP.user}" password="${SMTP.password}" port="${SMTP.port}" connectionTimeout="30" readTimeout="30" writeTimeout="30">
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<salesforce:sfdc-config name="Salesforce_UAT-Config" doc:name="Salesforce Config" doc:id="ef9f618c-f44b-4910-be18-bb27bb49f55a" >
+		<salesforce:basic-connection username="${Salesforce.Username}" password="${Salesforce.Password}" securityToken="${Salesforce.SecurityToken}" url="${Salesforce.AuthURL}"/>
+	</salesforce:sfdc-config>
+	<salesforce:sfdc-config name="Salesforce_PREPROD-Config" doc:name="Salesforce Config" doc:id="2686c0e5-3c43-4599-b1a8-3e29b274d7ef" >
+		<salesforce:basic-connection username="${Salesforce.Username}" password="${Salesforce.Password}" securityToken="${Salesforce.SecurityToken}" url="${Salesforce.AuthURL}"/>
+	</salesforce:sfdc-config>
+	
+</mule>

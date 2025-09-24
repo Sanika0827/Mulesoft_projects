@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd ">
+    <apikit:config name="skf-sftp-dataprocessor-papi-config" api="skf-sftp-dataprocessor-papi.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <flow name="skf-sftp-dataprocessor-papi-main">
+        <http:listener path="/api/*" config-ref="skf-sftp-dataprocessor-papi-httpListener">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="skf-sftp-dataprocessor-papi-config" />
+    </flow>
+    <flow name="skf-sftp-dataprocessor-prod-papiFlow" doc:id="2238f8c1-25b5-4331-bacd-8fe1bc3f0990" >
+		<scheduler doc:name="Scheduler" doc:id="997b89de-0110-42f7-99da-2ca96d9792bd">
+			<scheduling-strategy>
+				<cron expression="0 30 03  * * ?" timeZone="IST" />
+			</scheduling-strategy>
+		</scheduler>
+		<flow-ref doc:name="schedular-sftp-implementation" doc:id="710d3e3b-9e7b-4fe5-8a9d-95f7fd60e80c" name="schedular-sftp-implementation"/>
+	</flow>
+	<flow name="post:\customerpartnumbers:application\csv:skf-sftp-dataprocessor-papi-config">
+		<flow-ref doc:name="send-customer_part_number-to-salesforce-flow" doc:id="8c34be42-34a7-4a4f-a68b-3fae7dc0a384" name="send-customer_part_number-to-salesforce-flow"/>
+    </flow>
+    <flow name="post:\pricingconditions:application\csv:skf-sftp-dataprocessor-papi-config">
+		<flow-ref doc:name="sent-pricing_condition-to-salesforce" doc:id="69b2b170-458e-44fc-8810-71a0d1e0eec8" name="sent-pricing_condition-to-salesforce"/>
+    </flow>
+    <flow name="post:\itemreplacements:application\csv:skf-sftp-dataprocessor-papi-config" doc:id="a819fe76-0023-4330-856c-0bd11c614d06">
+		<flow-ref doc:name="sent-itemreplacements-to-salesforce-flow" doc:id="093b4ca4-01a2-4fda-9b74-86cd634a41b1" name="sent-itemreplacements-to-salesforce-flow"/>
+    </flow>
+    <flow name="post:\partnerfunctionnames:application\csv:skf-sftp-dataprocessor-papi-config" doc:id="a4375f02-4605-49bc-9487-992a3fdebd60">
+		<flow-ref doc:name="sent-partnerfunctionnames-to-salesforce-flow" doc:id="4d5ee5d7-66dc-4e4c-b923-3468ec1cd6f1" name="sent-partnerfunctionnames-to-salesforce-flow"/>
+    </flow>
+</mule>

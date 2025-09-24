@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:cloudhub="http://www.mulesoft.org/schema/mule/cloudhub"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/cloudhub http://www.mulesoft.org/schema/mule/cloudhub/current/mule-cloudhub.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<sub-flow name="fileNameVar-subFlow" doc:id="3db10a17-0b27-4f47-9658-6f8d6208491f" >
+		<set-variable value="#[attributes.headers.fileName]" doc:name="fileNameVar" doc:id="7bd6b342-cc66-4458-82a4-1421d0518d55" variableName="fileNameVar" />
+	</sub-flow>
+	<sub-flow name="errorMessageVarSubFlow" doc:id="fd543e2f-0dcc-475f-a391-6b3d561f7966" >
+		<set-variable value="#[[]]" doc:name="errorMessageVar" doc:id="c2adf35e-18f5-4609-bd6a-fafd031d5c58" variableName="errorMessageVar" />
+	</sub-flow>
+	<sub-flow name="FlowErrorHandllerold" doc:id="eb688fc0-0774-477b-853a-2e8f8cb269bd" >
+		<choice doc:name="Choice" doc:id="c7bfd1ef-bd54-4982-9ac0-3e1daec6db4a" >
+			<when expression="#[(vars.errorMessageVar filter($[0] != null) distinctBy ((item) -&gt; item))[0] != null]">
+				<try doc:name="Try" doc:id="54316e3b-0ea5-411c-8738-0faf88fde379">
+					<raise-error doc:name="Raise error" doc:id="7ade23ba-d57a-4c99-84be-51ac8c508f91" type="ANY" description="There was an Error in flow. Please check Mule Runtime logs for errors. login here : https://eu1.anypoint.mulesoft.com" />
+					<error-handler>
+							<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="808117d8-e2ca-4b9d-a3aa-20c46cfd0cce">
+								<ee:transform doc:name="Transform Message" doc:id="d4ab7ded-70a5-4668-afea-dc8b35ab1b0b">
+									<ee:message>
+										<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error Description" : error.description,
+	"Error Type" : error.errorType,
+	"Detailed Description" : error.detailedDescription,
+	"ErrorReason": (vars.errorMessageVar distinctBy ((item) -> item)) ,
+	"flowName": flow.name default " ",
+	"fileName": vars.fileNameVar default " ",
+	"Time": now()
+}
+]]></ee:set-payload>
+									</ee:message>
+								</ee:transform>
+								<logger level="INFO" doc:name="Logger" doc:id="752d3533-ff72-4f03-aa5e-7a93e40460dc" message="#[payload]" />
+							<until-successful maxRetries="5" doc:name="Until Successful" doc:id="82be7e70-fa43-4656-8e9b-7104ef5b235e" >
+								<email:send doc:name="Send" doc:id="2c8c7334-0c28-406c-a4f7-d9318d9dbb14" config-ref="Email_SMTP" fromAddress="ugdsanat@gmail.com" subject='#["Error in SKFSFTP-SF Integration" ++"--&gt;"++ payload.ErrorReason..message[0] as String]'>
+									<email:to-addresses>
+										<email:to-address value="sanat.ray@ubsdigicloud.com" />
+										<email:to-address value="mayur.kalbande@ubsdigicloud.com" />
+									</email:to-addresses>
+									<email:body contentType="text/plain" encoding="UTF-8" />
+								</email:send>
+							</until-successful>
+							<until-successful maxRetries="5" doc:name="Until Successful" doc:id="6b9fc5b1-64b6-4945-8053-0ba9f0eaa060">
+								<!-- [STUDIO:"LUBSAP UAT Move to Out_Error"]<sftp:move doc:name="LUBSAP UAT Move to Out_Error" doc:id="a636666f-9fb1-4e13-bd16-b0246503b4d3" config-ref="LUBSAP_SFTP_Config" sourcePath='#["QS1/In_MasterData/" ++ vars.fileNameVar&#93;' targetPath="QS1/Out_Error" renameTo="#[(vars.fileNameVar[0 to -5&#93; ++ now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss.SSSXXX&quot;}) ++ &quot;.csv&quot;&#93;"/> [STUDIO] -->
+								<sftp:move doc:name="LUBSAP PROD Move to Out_Error" doc:id="f6f9dab6-077a-4ed6-9ae7-e87f7cfcb555" config-ref="LUBSAP_SFTP_Config" sourcePath='#["P01/In_MasterData/" ++ vars.fileNameVar]' targetPath="P01/Out_Error" renameTo="#[(vars.fileNameVar[0 to -5] ++ now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss.SSSXXX&quot;}) ++ &quot;.csv&quot;]" />
+								<!-- [STUDIO:"Move to Error_Files Directory"]<sftp:move doc:name="Move to Error_Files Directory" doc:id="1a51b028-3ef2-4d3a-ba0c-c242c1a69dc0" config-ref="SFTP_Config_UAT" sourcePath='#["Unprocessed_Files/" ++ vars.fileNameVar&#93;' targetPath='Error_Files' renameTo="#[(vars.fileNameVar[0 to -5&#93; ++ now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss.SSSXXX&quot;}) ++ &quot;.csv&quot;&#93;" /> [STUDIO] -->
+							</until-successful>
+							</on-error-continue>
+						</error-handler>
+					</try>
+			</when>
+			<otherwise >
+				<until-successful maxRetries="5" doc:name="Until Successful" doc:id="89e4d5df-0da7-49ba-9734-9dd78f1b4e96">
+					<!-- [STUDIO:"UBSAP UAT Move to Out_Archive"]<sftp:move doc:name="UBSAP UAT Move to Out_Archive" doc:id="512aadce-acbd-429a-bbb6-2e39082b8cf3" config-ref="LUBSAP_SFTP_Config" sourcePath='#["QS1/In_MasterData/" ++ vars.fileNameVar&#93;' targetPath="QS1/Out_Archive" renameTo="#[(vars.fileNameVar[0 to -5&#93; as String ++ now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss.SSSXXX&quot;}) ++ &quot;.csv&quot;&#93;"/> [STUDIO] -->
+					<sftp:move doc:name="UBSAP PROD Move to Out_Archive" doc:id="a6d7fb21-cbe9-43b8-8eb0-a4cfb4912e79" config-ref="LUBSAP_SFTP_Config" sourcePath='#["P01/In_MasterData/" ++ vars.fileNameVar]' targetPath="P01/Out_Archive" renameTo="#[(vars.fileNameVar[0 to -5] as String ++ now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss.SSSXXX&quot;}) ++ &quot;.csv&quot;]" />
+					<!-- [STUDIO:"Move to Processed_Files Directory"]<sftp:move doc:name="Move to Processed_Files Directory" doc:id="d63829ce-f25b-4d5e-b116-9f52c4c9c66b" config-ref="SFTP_Config_UAT" sourcePath='#["Unprocessed_Files/" ++ vars.fileNameVar&#93;' targetPath='Processed_Files' renameTo="#[(vars.fileNameVar[0 to -5&#93; as String ++ now() as String {format: &quot;yyyy-MM-dd'T'HH:mm:ss.SSSXXX&quot;}) ++ &quot;.csv&quot;&#93;">
+							<reconnect />
+						</sftp:move> [STUDIO] -->
+				</until-successful>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<flow name="send-customer_part_number-to-salesforce-flow" doc:id="5eafb52b-d8a0-47de-b7fd-90044600a7d8">
+		<logger level="INFO" doc:name="StartLogger" doc:id="332e3378-f963-45d2-ae57-2186f483ece5" message='#["StartLogger----" ++ flow.name]' />
+		<flow-ref doc:name="fileNameVar-subFlow" doc:id="eb851967-50e4-4458-bd9f-f459350dbed7" name="fileNameVar-subFlow" />
+		<ee:transform doc:name="csv to json" doc:id="90738bfe-39fb-4c38-b03d-65adf1e48633">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map (item,index) -> {
+	External_ID__c: (item."Sales Org.")++ "_" ++ (("0000000000" ++ (item."Customer" as String))[-10 to -1]) ++ "_" ++ (item."Material number"),
+	"Sales_Organization__c": item."Sales Org.",
+	"Distribution_Channel__c": item."Distr. Channel",
+	 Account_Number__c: (("0000000000" ++ (item."Customer" as String))[-10 to -1]),
+	"Product_Code__c": item."Material number",
+	"Customer_Part_Number__c": item."Customer Material",
+	"isActive__c": if(item."Deletion Flag" == "X") false else true
+}]]></ee:set-payload>
+						</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="fileName" ><![CDATA[%dw 2.0
+output application/json
+---
+attributes.headers.fileName
+]]></ee:set-variable>
+			</ee:variables>
+					</ee:transform>
+		<logger level="INFO" doc:name="payload" doc:id="6487f8b8-f328-4922-98b9-95ab8ce4c19f" message="#[payload]"/>
+		<flow-ref doc:name="errorMessageVarSubFlow" doc:id="0aef4777-aeb0-4d73-9d2b-8e89fedb023b" name="errorMessageVarSubFlow"/>
+		<foreach doc:name="For Each" doc:id="e55fec6b-f27f-423d-ad81-6bfe89af0746" batchSize="200">
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="7d9b03c9-dcbc-4219-89a8-c5cc43de4289">
+				<!-- [STUDIO:"Upsert Customer_Specific_Part_Number__c PROD"]<salesforce:upsert objectType="Customer_Specific_Part_Number__c" doc:name="Upsert Customer_Specific_Part_Number__c PROD" doc:id="27bd5696-60fc-4c2e-a043-546a35cb0658" config-ref="Salesforce_Prod-Config" externalIdFieldName="External_ID__c"/> [STUDIO] -->
+				<salesforce:upsert objectType="Customer_Specific_Part_Number__c" externalIdFieldName="External_ID__c" doc:name="Upsert Customer_Specific_Part_Number__c UAT" doc:id="f6d1eb37-43d5-4a60-83cd-cb7a7f767ccb" config-ref="Salesforce_Prod-Config" />
+			</until-successful>
+			<flow-ref doc:name="forEachErrorMessageVar" doc:id="e69ea9c2-bc30-4375-828e-5ad80e883af6" name="forEachErrorMessageVar"/>
+			<flow-ref doc:name="choice-router-sub-flow" doc:id="bcef4618-b253-4051-a2bd-203acb46c069" name="choice-router-sub-flow"/>
+			<logger level="INFO" doc:name="payload" doc:id="d8904fc4-0607-4e64-9f98-04ac3624359d" message="#[payload]" />
+		</foreach>
+		<flow-ref doc:name="FlowErrorHandller" doc:id="5b1cee49-8ccc-4e30-9195-c44567ffb13b" name="FlowErrorHandllerold" />
+		<logger level="INFO" doc:name="endLogger" doc:id="ee6098fa-d494-47df-8bb0-1b221b245745" message='#["endLogger-----------" ++ flow.name]' />
+	
+</flow>
+	<flow name="sent-pricing_condition-to-salesforce" doc:id="6d5a8c33-015d-4c16-b889-6bfd8e50a227">
+		<logger level="INFO" doc:name="StartLogger" doc:id="af69f62d-03ac-41df-b6bf-87bd3c4bcdf5" message='#["StartLogger----" ++ flow.name]' />
+		<flow-ref doc:name="fileNameVar-subFlow" doc:id="7116a4a0-f344-4fee-8725-0d53098c2853" name="fileNameVar-subFlow"/>
+		<ee:transform doc:name="updated valid_to date (9999 to 4000)" doc:id="69c80c68-0e86-4efa-9a23-79eccbf1d155">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload map (item,index)->{
+
+Sales_Organization__c : item."Sales Org.",
+Product_Code__c: item.Material,
+Condition_Type__c: item."Cond.Type",
+Condition_Table__c: item.Table,
+Account_Number__c : item."Customer No",
+External_Id__c: item."Sales Org." default "" ++ "_" ++ item.Material default "" ++ "_" ++ item.Table  default "" ++ "_" ++ item."Customer No" default "",
+Distribution_Channel__c : item."Distr. Channel",
+
+List_Price__c: item.Price,
+
+Valid_From__c: if (item."Valid From" != null and sizeOf(item."Valid From") == 8 and item."Valid From" != "0") 
+                   item."Valid From" as Date {format: "yyyyMMdd"} as String {format: "yyyy-MM-dd"} as Date {format: "yyyy-MM-dd"}
+                 else "",
+//Valid_To__c: if (item."Valid To" != null and sizeOf(item."Valid To") == 8 and item."Valid To" != "0" and (item."Valid To"[0 to 3]) != "9999"  ) 
+//                item."Valid To" as Date {format: "yyyyMMdd"} as String {format: "yyyy-MM-dd"} as Date {format: "yyyy-MM-dd"}
+//               else "",
+Valid_To__c: if (item."Valid To" != null and sizeOf(item."Valid To") == 8 and item."Valid To" != "0") 
+				if(item."Valid To"[0 to 3] == "9999") ("4000" ++ item."Valid To"[4 to 7]) as Date {format: "yyyyMMdd"} as String {format: "yyyy-MM-dd"} as Date {format: "yyyy-MM-dd"}
+				else item."Valid To" as Date {format: "yyyyMMdd"} as String {format: "yyyy-MM-dd"} as Date {format: "yyyy-MM-dd"}
+               else "",
+Product_Created_Date__c: if (item."Created Date" != null and sizeOf(item."Created Date") == 8 and item."Created Date" != "0") 
+                 item."Created Date" as Date {format: "yyyyMMdd"} as String {format: "yyyy-MM-dd"} as Date {format: "yyyy-MM-dd"}
+               else "",
+
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="payload" doc:id="d0e768c9-0050-41f4-b697-a2f6ccbc34ab" message="#[payload]"/>
+		<flow-ref doc:name="errorMessageVarSubFlow" doc:id="523686ce-887e-4a8e-88ea-f509a8dd17cc" name="errorMessageVarSubFlow" />
+		<foreach doc:name="For Each" doc:id="fb6c1ca5-5b01-4982-9469-522893218834" batchSize="200">
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="3e9340e5-c9fa-4d9a-ab56-d83ccd06a4f7" >
+				<!-- [STUDIO:"Upsert Product Price Condition (Product_Price_Conditions__c) PROD"]<salesforce:upsert objectType="Product_Price_Conditions__c" doc:name="Upsert Product Price Condition (Product_Price_Conditions__c) PROD" doc:id="3965c531-bbf4-47d0-982e-965f579ee3b2" config-ref="Salesforce_Prod-Config" externalIdFieldName="External_Id__c"/> [STUDIO] -->
+				<salesforce:upsert objectType="Product_Price_Conditions__c" doc:name="Upsert Product Price Condition (Product_Price_Conditions__c)" doc:id="9f666ccb-3bd9-4ce5-9cce-0b38ec698d5e" config-ref="Salesforce_Prod-Config" externalIdFieldName="External_Id__c" >
+				</salesforce:upsert>
+			</until-successful>
+			<flow-ref doc:name="forEachErrorMessageVar" doc:id="067de14c-9682-489f-bd11-8e9068bf66d1" name="forEachErrorMessageVar" />
+			<flow-ref doc:name="choice-router-sub-flow" doc:id="fd6a96a9-eaaf-4918-8490-9475a936ef6b" name="choice-router-sub-flow"/>
+			<logger level="INFO" doc:name="Logger" doc:id="62b7dae8-6233-4d0e-997b-215801d847f2" message="#[payload]" />
+		</foreach>
+		<flow-ref doc:name="FlowErrorHandller" doc:id="12e7e7fb-e94d-4ea2-9d0e-6c9e00473a62" name="FlowErrorHandllerold" />
+		<logger level="INFO" doc:name="endLogger" doc:id="a28d9111-748e-42e8-8dfd-29aef8f50212" message='#["endLogger-----------" ++ flow.name]' />
+	</flow>
+	<flow name="sent-itemreplacements-to-salesforce-flow" doc:id="aeec4baa-1e5c-490a-8d8a-40e558480bb8" >
+		<logger level="INFO" doc:name="StartLogger" doc:id="111f75ae-38b9-4476-b06f-96aef33eb910" message='#["StartLogger----" ++ flow.name]' />
+		<flow-ref doc:name="fileNameVar-subFlow" doc:id="cc962296-d094-4a6a-b2bd-1a3376ac0b93" name="fileNameVar-subFlow"/>
+		<ee:transform doc:name="csv to json" doc:id="c29e72b4-08c8-43ac-ad04-3c09ca9a6ddb" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map (item,index) -> {
+	External_Id__c: (item.Old_Material_Code default "") ++ "_" ++ (item.Sales_Org default ""),
+	"New_Product_Code__c": item.New_Material_Code,
+	"Old_Product_Code__c": item.Old_Material_Code,
+	 Sales_Organization__c: item.Sales_Org,
+	"Source__c": item.Source,
+	"Distribution_Channel__c": item.Dist_Channel
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="payload" doc:id="56565433-3743-4c35-a425-18d47c3d5d80" message="#[payload]" />
+		<flow-ref doc:name="errorMessageVarSubFlow" doc:id="e8198b3a-c530-4027-8e62-f91283c889f9" name="errorMessageVarSubFlow" />
+		<foreach doc:name="For Each" doc:id="758636ff-77ee-45f1-9ecb-a6f7fe3bf885" batchSize="200">
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="ee559670-bbda-487a-a167-011ee5a1f3b3" >
+				<!-- [STUDIO:"Upsert Replaced Material (Replaced_Material__c) PROD"]<salesforce:upsert objectType="Replaced_Material__c" doc:name="Upsert Replaced Material (Replaced_Material__c) PROD" doc:id="4585d639-3ee9-4782-8bbd-ab3c502b6c68" config-ref="Salesforce_Prod-Config" externalIdFieldName="External_Id__c"/> [STUDIO] -->
+				<salesforce:upsert objectType="Replaced_Material__c" doc:name="Upsert Replaced Material (Replaced_Material__c) UAT" doc:id="0a8e92d1-0f2b-44d6-a6ff-ab1a686a21ca" config-ref="Salesforce_Prod-Config" externalIdFieldName="External_Id__c"/>
+			</until-successful>
+			<flow-ref doc:name="forEachErrorMessageVar" doc:id="988cb3d6-8372-4231-961e-35f347302a36" name="forEachErrorMessageVar" />
+			<flow-ref doc:name="choice-router-sub-flow" doc:id="ea4b9b4b-b4b2-4bbe-8bfb-80a034d480f2" name="choice-router-sub-flow"/>
+			<logger level="INFO" doc:name="payload" doc:id="349f9833-87f0-423f-a8bc-bdcc48eca03d" message="#[payload]" />
+		</foreach>
+		<flow-ref doc:name="FlowErrorHandller" doc:id="f3608b29-89c4-4258-addf-90df190f3a95" name="FlowErrorHandllerold" />
+		<logger level="INFO" doc:name="endLogger" doc:id="589e2ae4-c75b-427d-bcde-4fc268af86b5" message='#["endLogger-----------" ++ flow.name]' />
+	</flow>
+	<flow name="sent-partnerfunctionnames-to-salesforce-flow" doc:id="2583dcb8-bd99-469b-bca8-04c11bd5ea3b" >
+		<logger level="INFO" doc:name="StartLogger" doc:id="c28bebbd-c688-4d58-9911-6987cd0078f1" message='#["StartLogger----" ++ flow.name]' />
+		<flow-ref doc:name="fileNameVar-subFlow" doc:id="5960226f-7a62-44c7-b1b9-64e588d03972" name="fileNameVar-subFlow"/>
+		<ee:transform doc:name="csv to json" doc:id="896c634c-d985-401a-9b61-6ee2bb2c5eb5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map (item,index) -> {
+	"Name__c": item.Name,
+	"Name_2__c": item."Name 2",
+	 SAP_Customer_Number__c: item.Customer,
+	"Created_On__c": if (item."Created on" != null and sizeOf(item."Created on") == 8 and item."Created on" != "0") 
+                   item."Created on" as Date {format: "yyyyMMdd"} as String {format: "yyyy-MM-dd"} as Date {format: "yyyy-MM-dd"}
+                 else ""
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="payload" doc:id="b6f98fec-6a9d-4cde-b27b-a7222b4b39e1" message="#[payload]" />
+		<flow-ref doc:name="errorMessageVarSubFlow" doc:id="0861f6c8-d640-42bf-8fd9-58d8314f79ef" name="errorMessageVarSubFlow" />
+		<foreach doc:name="For Each" doc:id="4941693c-e45f-4fc8-b733-223cfac63dd1" batchSize="200">
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="ce6d603e-46af-4fa9-a41f-2cc3731b03d5" >
+				<!-- [STUDIO:"Partner_Function_Name__c PROD"]<salesforce:upsert objectType="Partner_Function_Name__c" externalIdFieldName="SAP_Customer_Number__c" doc:name="Partner_Function_Name__c PROD" doc:id="a58f2d9d-5f55-40e9-af20-0d524833637a" config-ref="Salesforce_UAT-Config" /> [STUDIO] -->
+				<salesforce:upsert objectType="Partner_Function_Name__c" doc:name="Partner_Function_Name__c UAT" doc:id="819d923e-f620-402d-980e-1b81702ffd79" config-ref="Salesforce_Prod-Config" externalIdFieldName="Name"/>
+			</until-successful>
+			<flow-ref doc:name="forEachErrorMessageVar" doc:id="4f0e1949-4c46-4fe9-a537-620b2132fbe1" name="forEachErrorMessageVar" />
+			<flow-ref doc:name="choice-router-sub-flow" doc:id="fc0fbec1-b0db-4bd4-bb69-c92d66052888" name="choice-router-sub-flow" />
+			<logger level="INFO" doc:name="payload" doc:id="2df26389-38dd-4f6c-830b-03d135719564" message="#[payload]" />
+		</foreach>
+		<flow-ref doc:name="FlowErrorHandller" doc:id="9b1369c8-8397-42cf-b60d-b7008e404c6e" name="FlowErrorHandllerold" />
+		<logger level="INFO" doc:name="endLogger" doc:id="902d24ab-b1df-40f3-9ca3-0c466914eb5a" message='#["endLogger-----------" ++ flow.name]' />
+	</flow>
+	<sub-flow name="choice-router-sub-flow" doc:id="759a8aa0-8d60-4236-8085-29d4d9848114">
+		<try doc:name="Try" doc:id="da6c8fb1-2ad9-43c6-811a-ca869f585164" >
+			<choice doc:name="Choice" doc:id="7cf44a17-9bf7-4a79-80ff-6885f2cf88c2">
+			<when expression="#[payload.items[0].payload.created == true and payload.items[0].exception.localizedMessage == null]">
+				<ee:transform doc:name="Transform Message" doc:id="98233d9e-7536-4f65-9899-38a783cb57aa">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload.*items map ((item, index) -> {
+    "Message": "Record Created Successfully in Salesforce",
+    "recordId": item..payload.id
+
+
+})]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<when expression="#[payload.items[0].payload.created == false and payload.items[0].exception.localizedMessage == null]">
+				<ee:transform doc:name="Transform Message" doc:id="67ec98a0-610d-4dea-996b-848a29627d30">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload.*items map ((item, index) -> {
+    "Message": "As the record/s are present in the system, they are updated successfully in Salesforce, find IDs below",
+    "recordId": item..payload.id
+
+
+})]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<when expression="#[payload.items[0].exception.localizedMessage != null and payload.successful == false]">
+				<ee:transform doc:name="Transform Message" doc:id="eaf35509-10c6-4522-8248-8c797831e4cf">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	
+	"Message":"There is an exception in flow",
+	"Details": payload.items[0].exception.localizedMessage,
+	"StatusCode": payload.items[0].statusCode,
+	"Successful": payload.successful
+	
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="6f6601f1-d5f2-448e-8574-e5bcd2cf79ce" message="#[payload]" />
+				<raise-error doc:name="Raise error" doc:id="bd1cfe68-8efb-4d5f-bd4e-cdfcbcfe9451" type="ANY" description="There was an Error in flow. Please check Mule Runtime logs for errors. login here : https://eu1.anypoint.mulesoft.com" />
+			</when>
+			<when expression="#[payload.payload.created == true and payload.exception.localizedMessage == null]">
+				<ee:transform doc:name="Transform Message" doc:id="c1cda969-7cee-416f-b9fc-25f2cb82c0bb">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "Message": "Record Created Successfully in Salesforce",
+    "recordId": payload.items.payload.id
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			
+</when>
+			<when expression="#[payload.payload.created == false and payload.exception.localizedMessage == null]">
+				<ee:transform doc:name="Transform Message" doc:id="34d6ab88-26e3-44e5-b691-727000aaef44">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+ {
+    "Message": "As the record is present in the system, it was updated successfully in Salesforce",
+    "recordId": payload.payload.id
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			
+</when>
+			<when expression="#[payload.exception.localizedMessage != null and payload.successful == false]">
+				<ee:transform doc:name="Transform Message" doc:id="8f69c2eb-4da7-406d-a79e-2dd02a75c89d">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	
+	"Message":"There was an Exception",
+	"Details": payload.exception.localizedMessage,
+	"StatusCode": payload.statusCode,
+	"Successful": payload.successful
+	
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="ac26f158-1506-4f76-a176-409afad20c16" message="#[payload]" />
+				<raise-error doc:name="Raise error" doc:id="1010809e-f049-4b2e-a8d5-92e773093da2" type="ANY" description="There was an Error in the flow. Please check Mule Runtime logs for errors. login here : https://eu1.anypoint.mulesoft.com" />
+			
+</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="a95d9375-e3af-44f3-ad5a-db87475104f7">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="b59b11be-c271-44e1-9c77-25e721341945" >
+					<ee:transform doc:name="error Notificaton" doc:id="5db699e7-1bc4-48ae-8331-3aa679ee5b75" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error Description" : error.description,
+	"Error Type" : error.errorType,
+	"Detailed Description" : error.detailedDescription,
+	"ErrorReason": payload,
+	"flowName": flow.name default " ",
+	"fileName": vars.fileNameVar default " ",
+	"Time": now()
+}
+]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<sub-flow name="forEachErrorMessageVar" doc:id="72b4c89c-4374-4ee9-a8d0-d62c58bdcdb2" >
+		<set-variable value="#[output application/json --- vars.errormessageVar + ((payload.items.payload.errors  filter (item) -&gt; (sizeOf(item) &gt; 0 and item[0].message != null)) distinctBy ((item) -&gt; item))]" doc:name="errorMessageVar" doc:id="dafb6cce-9068-4dd9-8a82-0681849ebcf2" variableName="errorMessageVar" />
+	</sub-flow>
+</mule>

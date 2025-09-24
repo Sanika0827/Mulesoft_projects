@@ -1,0 +1,74 @@
+#%RAML 1.0
+title: skf lubsap sftp data Processor Process API
+description: lubsap sftp data processor to process the Pricing Condition/Customer Materials/Items Replacement csv to Salesforce Object
+
+uses: 
+  GlobalResources: /exchange_modules/org.mule.templates/accelerator-global-resources/2.2.0/accelerator-global-resources.raml
+
+
+
+/pricingconditions:
+  displayName: Post data to salesforce Product Pricing Condition Object
+  post:
+    is:
+      - GlobalResources.ErrorResponses
+      - GlobalResources.Trackable
+    description: Creates new Pricing condition  
+    body:
+      application/csv:
+        description: contains Pricing Condition csv from SFTP
+    responses:
+      201:
+         body:
+           application/json:
+             example: { "status": "records successfully created in salesforce" }
+               
+
+/customerpartnumbers:
+  displayName: Post data to salesforce Customer Specific Part Number object
+  post:
+    is:
+      - GlobalResources.ErrorResponses
+      - GlobalResources.Trackable
+    description: Creates new Customer specific part number  
+    body:
+      application/csv:
+        description: contains product csv from SFTP
+    responses:
+      200:
+         body:
+           application/json:
+             example: { "status": "records successfully created in salesforce" }
+
+/itemreplacements:
+  displayName: Post data to salesforce Replacement material
+  post:
+    is:
+      - GlobalResources.ErrorResponses
+      - GlobalResources.Trackable
+    description: Updated/Created records in replacement material.  
+    body:
+      application/csv:
+        description: contains order csv from SFTP
+    responses:
+      200:
+         body:
+           application/json:
+             example: { "status": "records successfully created in salesforce" }
+
+
+/partnerfunctionnames:
+  displayName: Post data to salesforce partnerfunction name sapi
+  post:
+    is:
+      - GlobalResources.ErrorResponses
+      - GlobalResources.Trackable
+    description: Updated/created records in Partnerfunctionname object  
+    body:
+      application/csv:
+        description: contains order csv from SFTP
+    responses:
+      200:
+         body:
+           application/json:
+             example: { "status": "records successfully created in salesforce" }

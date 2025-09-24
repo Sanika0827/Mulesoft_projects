@@ -1,0 +1,54 @@
+Salesforce:
+  Username: integration.user@skflubircation.com.lubuat
+  Password: FaRL9Gi?dn6XM56S
+  SecurityToken: v9xhWs7j2Co5XTxt8hoOTCS1
+  AuthURL: https://test.salesforce.com/services/Soap/u/58.0
+  
+SFTPNAM:
+  Host: "snetdatalake.blob.core.windows.net"
+  Port: "22"
+  Username: "snetdatalake.salesforce.salesforceuser"
+  Password: "yAMezkhmDf9/QO7uw+cML7rRg0JxEw7R"
+  
+SFTP:
+  Host: "vhskfp01ci.hec.skf.net"
+  Port: "22"
+  Username: "salesforce"
+  Password: "VChD5f2i_R3X5swspyAs"
+  path: "/usr/sap/salesforce/"
+
+SMTP:
+  host: "smtp.gmail.com"
+  port: "587"
+  user: "mulesoftintegration2025@gmail.com" #"ugdsanat@gmail.com"
+  password: "lnqxelpcmupgqntk" #"msvktxaybwfwgsfy"
+
+http:
+  port: "8081"
+  
+api:
+  instance: "2161924"
+  
+#financialssapi:
+#  host: "salesforce-sapi-uat-api-gb1cc.2ky31l-1.deu-c1.eu1.cloudhub.io"
+#  port: "443"
+  
+#invoicessapi:
+#  host: "salesforce-sapi-uat-api-gb1cc.2ky31l-1.deu-c1.eu1.cloudhub.io"
+#  port: "443"  
+  
+#accountssapi:
+#  host: "salesforce-accounts-uat-sapi-gb1cc.2ky31l-1.deu-c1.eu1.cloudhub.io"
+#  port: "443"
+  
+  
+# alll local papi has same host & port in http request
+httprequestlocal:
+  host: "localhost"
+  port: "8081"
+
+      
+      
+      
+      
+      

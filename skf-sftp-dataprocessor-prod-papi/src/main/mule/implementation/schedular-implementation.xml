@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<sub-flow name="ErrorNotificationToEmail" doc:id="fc1cb332-e33d-4ea4-945e-943fba4daae0" >
+		<ee:transform doc:name="error Notificaton" doc:id="21d7c9f6-b636-468c-8cac-af46fd8745f8">
+													<ee:message>
+														<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error Description" : error.description,
+	"Error Type" : error.errorType,
+	"Detailed Description" : error.detailedDescription,
+	"ErrorReason": vars.ErrorDetailsVar default " ",
+	"flowName": flow.name default " ",
+	"fileName": vars.fileNameVar default " ",
+	"Time": now()
+}
+]]></ee:set-payload>
+													</ee:message>
+												</ee:transform>
+		<logger level="INFO" doc:name="errorPayload" doc:id="d112dc86-150b-4c34-86a7-54446a9b2556" message="#[payload]" />
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="e4f06d9b-e3c0-4245-a9eb-cd22af2e5eb0" >
+			<email:send doc:name="Send" doc:id="5f9e90f6-8d8a-4201-bd10-e29d4521b734" config-ref="Email_SMTP" fromAddress="ugdsanat@gmail.com" subject='#["Error in SKFSFTP-SF Integration ---&gt; " ++ payload.ErrorReason default "" as String]'>
+													<email:to-addresses>
+														<email:to-address value="sanat.ray@ubsdigicloud.com" />
+					<email:to-address value="mayur.kalbande@ubsdigicloud.com" />
+													</email:to-addresses>
+												<email:body contentType="text/plain" encoding="UTF-8" />
+												</email:send>
+		</until-successful>
+	</sub-flow>
+	<flow name="schedular-sftp-implementation" doc:id="32cf6668-d054-4988-bb22-142cb2a38d80" >
+		<logger level="INFO" doc:name="start scheduler" doc:id="394a65bc-84c1-48ea-aa46-c25dc5d95333" message='#["start scheduler--------" ++ flow.name]' />
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="939ceb33-6a2b-4e8f-993c-5a5f3fd386f4">
+			<sftp:list doc:name="LubsapPRODList" doc:id="03a66fec-45ba-4cae-985d-574016c3e385" config-ref="LUBSAP_SFTP_Config" directoryPath="P01/In_MasterData">
+				<reconnect />
+			</sftp:list>
+		</until-successful>
+		<!-- [STUDIO:"Until Successful"]<until-successful maxRetries="5" doc:name="Until Successful" doc:id="e061e3e1-89da-44c5-8ba3-924095e14827" >
+			<sftp:list doc:id="39b85e6a-e3f1-4380-bd67-8b159b3d3433" config-ref="SFTP_Config_UAT" directoryPath="Unprocessed_Files" doc:name="SKF NAN List" >
+				<sftp:matcher />
+			</sftp:list>
+		</until-successful> [STUDIO] -->
+		<!-- [STUDIO:"Until Successful"]<until-successful maxRetries="5" doc:name="Until Successful" doc:id="589e9947-a545-4cfb-b9ab-86ef26e131e5">
+			<sftp:list doc:name="LubsapUATList" doc:id="c3116708-4b6c-41e0-96e7-3a90d707ace9" config-ref="LUBSAP_SFTP_Config" directoryPath="QS1/In_MasterData">
+				<reconnect />
+			</sftp:list>
+		</until-successful> [STUDIO] -->
+		<ee:transform doc:name="Transform Message" doc:id="38dee72c-3eb4-401d-8e6e-bdd0858e892e">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+
+((payload.*attributes) filter (($.fileName contains "SAP-PricingCondition") or ($.fileName contains "Replacement") or ($.fileName contains "CustomerMaterialMapping") or ($.fileName contains "SAP_Customer") ))]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[sizeOf(payload)]" doc:name="totalPullFilesVar" doc:id="c839df99-2f35-413d-9c94-2f26ebd7fc00" variableName="totalPullFilesVar"/>
+		<logger level="INFO" doc:name="Total files pull" doc:id="44506e85-16af-4d15-8a80-c1cb9fa2478b" message='#["Total files pull" ++ "--&gt;" ++ sizeOf(payload)]' />
+		<foreach doc:name="For Each" doc:id="7fbd5cbc-c02b-46fe-bc93-b3d3c22ecb96" collection="#[payload]" >
+			<logger level="INFO" doc:name="file serial number" doc:id="1271025a-69d3-4914-a3cb-dad5abdf56db" message='#["file serial number" ++ "--&gt;" ++ vars.counter as String]' />
+			<set-variable value="#[payload..fileName[0]]" doc:name="fileNameVar" doc:id="cafd15a0-039e-4830-9cf4-9d045ce48fbb" variableName="fileNameVar" />
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="0491689e-9a44-4bec-a17f-f5cd44e32502">
+				<sftp:read doc:name="LUBSAPRead" doc:id="af88762e-ef02-4f62-8f35-cd1fb61ce622" config-ref="LUBSAP_SFTP_Config" path="#[payload.path]" />
+			</until-successful>
+			<!-- [STUDIO:"SKF NAM Read"]<sftp:read doc:name="SKF NAM Read" doc:id="1c776614-a8fe-49b1-9796-bc0d6e3a121b" config-ref="SFTP_Config_UAT" path="#[payload.path&#93;"/> [STUDIO] -->
+			<choice doc:name="Choice" doc:id="9fb300e6-3937-4545-9b5e-80ff0e5ba5f7">
+						<when expression='#[vars.fileNameVar contains "PricingCondition"]'>
+							<try doc:name="Try" doc:id="27dc470b-7e9c-407c-b61b-538a41d128c7">
+									<until-successful maxRetries="5" doc:name="Until Successful" doc:id="562197d8-ccb0-4d16-b708-bcc0005009d3">
+									<http:request method="POST" doc:name="/pricingconditions" doc:id="9d59d8ef-7e26-4a84-a8c7-390f9f0e1bef" config-ref="HTTP_Request_config_local_resources" path="/pricingconditions" responseTimeout="3000000">
+										<ee:repeatable-file-store-stream bufferUnit="MB" />
+										<reconnect />
+										<http:headers><![CDATA[#[{
+	"Content-Type" : "application/csv",
+	"fileName":vars.fileNameVar
+}]]]></http:headers>
+									</http:request>
+							</until-successful>
+									<error-handler>
+										<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="07a7c1e0-09f1-4a83-a18c-44855e624ee6">
+											<flow-ref doc:name="Error Notification to Mail" doc:id="91748182-7a12-4879-a675-c805a784b579" name="ErrorNotificationToEmail" />
+										</on-error-continue>
+									</error-handler>
+								</try>
+				</when>
+				<when expression='#[vars.fileNameVar contains "CustomerMaterialMapping"]'>
+							<try doc:name="Try" doc:id="0768b6a1-75bd-4e7c-94ef-57b2ebb89800">
+									<until-successful maxRetries="5" doc:name="Until Successful" doc:id="65bee08b-a95f-48a9-8848-661d2909bd78">
+									<http:request method="POST" doc:name="/customerpartnumbers" doc:id="66396ee1-0ae9-4d32-b93d-6a861c79b0d7" config-ref="HTTP_Request_config_local_resources" path="/customerpartnumbers" responseTimeout="3000000">
+										<ee:repeatable-file-store-stream bufferUnit="MB" />
+										<reconnect frequency="20000" />
+										<http:headers><![CDATA[#[{
+	"Content-Type" : "application/csv",
+	"fileName":vars.fileNameVar
+}]]]></http:headers>
+									</http:request>
+							</until-successful>
+								<error-handler>
+										<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="08c43c35-6f6a-4615-a067-69f31fdb0445">
+											<flow-ref doc:name="Error Notification to Mail" doc:id="46c21cb5-c85c-4b59-bfb5-380c65a8dfef" name="ErrorNotificationToEmail" />
+										</on-error-continue>
+									</error-handler>
+								</try>
+				</when>
+				<when expression='#[vars.fileNameVar contains "Replacement"]' >
+					<try doc:name="Try" doc:id="a406b02b-0130-4688-b28f-63c2057c54ad">
+									<until-successful maxRetries="5" doc:name="Until Successful" doc:id="73c22dc6-a58f-422b-8420-a0c90a331368">
+									<http:request method="POST" doc:name="/itemreplacements" doc:id="5e75b853-fbb7-4de1-96ad-ad6fa58d210a" config-ref="HTTP_Request_config_local_resources" path="/itemreplacements" responseTimeout="3000000">
+										<ee:repeatable-file-store-stream bufferUnit="MB" />
+										<reconnect />
+										<http:headers><![CDATA[#[{
+	"Content-Type" : "application/csv",
+	"fileName":vars.fileNameVar
+}]]]></http:headers>
+									</http:request>
+							</until-successful>
+									<error-handler>
+										<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="dd2a3741-d0c9-4590-abe1-1d8399e85fd2">
+											<flow-ref doc:name="Error Notification to Mail" doc:id="e14227db-441d-45f7-ae77-988ca1ed0144" name="ErrorNotificationToEmail" />
+										</on-error-continue>
+									</error-handler>
+								</try>
+				</when>
+				<when expression='#[vars.fileNameVar contains "SAP_Customer"]'>
+					<try doc:name="Try" doc:id="87743a5f-84dd-4ee7-9505-ea18d7e94246" >
+						<until-successful maxRetries="5" doc:name="Until Successful" doc:id="44063101-2f2f-41a6-ba9d-f650655d2b3a" >
+							<http:request method="POST" doc:name="/partnerfunctionnames" doc:id="f0840b4b-78c4-4c6c-84bd-8226ea8c77a2" config-ref="HTTP_Request_config_local_resources" path="/partnerfunctionnames" responseTimeout="3000000" >
+								<ee:repeatable-file-store-stream bufferUnit="MB" />
+								<reconnect />
+								<http:headers ><![CDATA[#[{
+	"Content-Type" : "application/csv",
+	"fileName":vars.fileNameVar
+}]]]></http:headers>
+							</http:request>
+						</until-successful>
+						<error-handler >
+							<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="a8aa5e05-4e22-4855-bfe4-9af331174d92" >
+								<flow-ref doc:name="Error Notification to Mail" doc:id="e16d5c6b-ea47-4d1a-a5a9-b831bb264767" name="ErrorNotificationToEmail" />
+							</on-error-continue>
+						</error-handler>
+					</try>
+				</when>
+			</choice>
+			<logger level="INFO" doc:name="One csv file completed" doc:id="b4e20914-57e6-466e-a705-e68bf7301089" message='#[{&#10;	"status":"successfully Upserted all records from" ++ " "++ vars.fileNameVar ++ " " ++ "in" ++ " " ++ vars.fileNameVar[0 to -4] ++ " "++ "salesforce Object",&#10;	"File Number": vars.counter,&#10;	"Rest pull files": vars.totalPullFilesVar - vars.counter	&#10;}]' />
+		</foreach>
+		<logger level="INFO" doc:name="successful" doc:id="7a9e5b29-f8ae-4862-981a-c98eff342d36" message='#["successfully inserted all the pull files in respective Salesforce objects"]' />
+	</flow>
+</mule>

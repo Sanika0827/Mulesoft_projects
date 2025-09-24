@@ -1,0 +1,37 @@
+Salesforce:
+    Username: integration.user@skflubircation.com.preprod
+    Password: digi@4321
+    SecurityToken: SBZoQBtyOas6v4Fh7gud1AXl
+    AuthURL: https://skflubrications--lubpreprod.sandbox.my.salesforce.com/services/Soap/u/58.0
+    
+    
+SFTPNAM:
+  Host: "snetdatalake.blob.core.windows.net"
+  Port: "22"
+  Username: "snetdatalake.salesforce.salesforceuser"
+  Password: "yAMezkhmDf9/QO7uw+cML7rRg0JxEw7R"
+  
+SFTP:
+  Host: "vhskfp01ci.hec.skf.net"
+  Port: "22"
+  Username: "salesforce"
+  Password: "VChD5f2i_R3X5swspyAs"
+  path: "/usr/sap/salesforce/"
+  
+SMTP:
+  host: "smtp.gmail.com"
+  port: "587"
+  user: "ugdsanat@gmail.com"
+  password: "msvktxaybwfwgsfy"
+
+http:
+  port: "8081"
+  
+
+  
+  # alll local papi has same host & port in http request
+httprequestlocal:
+  host: "localhost"
+  port: "8081"
+
+  
