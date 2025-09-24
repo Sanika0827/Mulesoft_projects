@@ -26,7 +26,6 @@
     </flow>
     <flow name="post:\pricingconditions:application\csv:skf-sftp-dataprocessor-papi-config">
 		<flow-ref doc:name="sent-pricing_condition-to-salesforce" doc:id="69b2b170-458e-44fc-8810-71a0d1e0eec8" name="sent-pricing_condition-to-salesforce"/>
-		<logger level="INFO" doc:name="Logger" doc:id="a87d5267-99b8-4d5b-bbb8-d48cca5adc22" message="#[payload]"/>
     </flow>
     <flow name="post:\itemreplacements:application\csv:skf-sftp-dataprocessor-papi-config" doc:id="a819fe76-0023-4330-856c-0bd11c614d06">
 		<flow-ref doc:name="sent-itemreplacements-to-salesforce-flow" doc:id="093b4ca4-01a2-4fda-9b74-86cd634a41b1" name="sent-itemreplacements-to-salesforce-flow"/>
@@ -35,3 +34,4 @@
 		<flow-ref doc:name="sent-partnerfunctionnames-to-salesforce-flow" doc:id="4d5ee5d7-66dc-4e4c-b923-3468ec1cd6f1" name="sent-partnerfunctionnames-to-salesforce-flow"/>
     </flow>
 </mule>
+
